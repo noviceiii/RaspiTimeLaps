@@ -30,7 +30,7 @@ swait=0                                      # init the waiting time
 hourfrm=`expr 60 / ${INTERVAL} / ${HOURFRM}` # calculate the frame rate
 
 # DEBUG !!
-# tnow="17:21"
+# tnow="17:21" 
 
 echo "$ts: ----- Starting program -----"
 
