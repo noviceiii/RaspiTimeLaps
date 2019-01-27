@@ -6,8 +6,7 @@
 # requires ffmpeg and youtube upload python script on remote server and sshfs on local computer
 
 
-LOCATION="SZXX0006"              # STRING. Insert your location. For example SZXX0006 is a location code for Bern, Switzerland. Requiret to calculate sunrise an
-d sunset time.
+LOCATION="SZXX0006"              # STRING. Insert your location. For example SZXX0006 is a location code for Bern, Switzerland. Requiret to calculate sunrise and sunset time.
 tDIRSNAPS="/mnt/MYDIR"           # STRING. Path to temporary directory for snapshots. No tailing slash. Can be in the below mount dir.
 tDIRVID="/mnt/MYDIR"             # STRING. Path to temporary directory for the videos. No tailing slash. Can be in below mount dir.
 
