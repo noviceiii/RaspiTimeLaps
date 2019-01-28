@@ -26,7 +26,7 @@ ts=`date +%Y-%m-%d_%H%M%S_%s`                # timestamp 2019-11-28_153244_12345
 tnow=$(date +%H:%M)                          # current time
 tfriend=`date +%d.%m.%Y`                     # frindly name
 swait=0                                      # init the waiting time
-hourfrm=`expr 60 / ${INTERVAL} / ${HOURFRM}` # calculate the frame rate
+hourfrm=`expr ${HOURFRM} / ${INTERVAL} / 60` # calculate the frame rate
 
 # DEBUG !!
 # tnow="17:21" 
@@ -152,7 +152,7 @@ vidsfile="$rempath/MYTimeLapse_$ts.mp4"
 
 # create video by executing ffmpeg on the remote server. Mind to use the remote servers paths.
 echo "$ts: Create video on $REMOTESRV. Use snapshots $snapfiles to create $vidsfile in local $rempath, remote $rempath with framerate $hourfrm (Interval $INTERVAL, length of an hour $HOURFRM)"
-ssh -t $REMOTEUSR@$REMOTESRV "ffmpeg -report -thread_queue_size 5000 -r $hourfrm -f image2 -s 2592x1944 -i $snapfiles -vcodec libx264 $vidsfile"
+ssh -t $REMOTEUSR@$REMOTESRV "ffmpeg -report -thread_queue_size 5000 -fps $hourfrm -f image2 -s 2592x1944 -i $snapfiles -vcodec libx264 $vidsfile"
 
 
 if [ -f "$dirvid/Solothurn_TimeLapse_$ts.mp4" ]; then
