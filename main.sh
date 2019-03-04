@@ -1,63 +1,40 @@
 #!/bin/bash
 
-# First obtain a location code from: https://weather.codes/search/
-# Lubos Rendek on linuxconfig chmod +x sunrise-sunset.sh
+#   Raspii Time Lapse from sunrise to sunset
+#   Backup on remote linux server, upload to youtube
+#   Version 2.0, March 3th by Oliver beta
 
-# requires ffmpeg and youtube upload python script on remote server and sshfs on local computer
+# Calculate Sunrise/ Sunset with Lubos Rendek on linuxconfig chmod +x sunrise-sunset.sh
+# youtube upload script https://github.com/tokland/youtube-upload
 
+TDIR="/tmp"                                         # STRING. temporary directory
+INTERVAL=15                                         # INT. take picture in that interval in seconds
+RESW="1920"                                         # STRING. resolution width
+RESH="1080"                                         # STRING. resolution height
+LOCATION="SZXX0006"                                 # STRING. Location to set sunset/sunrise
+offSTART=1                                          # INT. Offset Hour to start before sunrise
+offEND=1                                            # INT. Offset Hour to quit after sunset
+FPATH="/opt/script/timelapse/Roboto-Regular.ttf"    # STRING. full path to font file. Optain from google fonts
+WFILE="/opt/script/timelapse/weather.txt"           # STRING. full path to file with weather information
 
-LOCATION="SZXX0006"              # STRING. Insert your location. For example SZXX0006 is a location code for Bern, Switzerland. Requiret to calculate sunrise and sunset time.
-tDIRSNAPS="/mnt/MYDIR"           # STRING. Path to temporary directory for snapshots. No tailing slash. Can be in the below mount dir.
-tDIRVID="/mnt/MYDIR"             # STRING. Path to temporary directory for the videos. No tailing slash. Can be in below mount dir.
+# ----------------------------------------------------------------------------            
 
-WARP=1                           # HOURS.  hours to start before sunrise and to run after sunset. Set to 0 for no waitin time. Full numbers only.
-INTERVAL=2                       # MINUTES. Takes a snapshot every x minutes.
-HOURFRM=1                        # MINUTES. How long one hour shall take in minutes
+# timestamps
+ts=`date +%Y-%m-%d_%H%M%S`
+tsfriendly=`date +%d.%m.%Y`
+tnow=$(date +%H:%M) 
+stnow=`date +%s -d ${tnow}`
 
-REMOTEUSR="USER"                 # STRING. Remote user name
-REMOTESRV="SERVER"               # STRING. Remote sever address or name
-REMOTDIR="REMOTDIR"              # STRING. Remote directory to put the files into no tailing slash
-LOCALMNT="PATH TO LOCAL MOUNT"   # STRING. Local path to the remote directory (mounting point)
+# working directory
+wdir="$TDIR/$ts"   
 
-# -------------------------- PROGRAM -------------------------- #
+# other init values
+i=1
+j=0
+fin=1
+resx="${RESW}x${RESH}"
 
-# set some values required to run
-ts=`date +%Y-%m-%d_%H%M%S_%s`                # timestamp 2019-11-28_153244_123456
-tnow=$(date +%H:%M)                          # current time
-tfriend=`date +%d.%m.%Y`                     # frindly name
-swait=0                                      # init the waiting time
-hourfrm=`expr ${HOURFRM} / ${INTERVAL} / 60` # calculate the frame rate
-
-# DEBUG !!
-# tnow="17:21" 
-
-echo "$ts: ----- Starting program -----"
-
-# mount remote driectory
-echo "$ts: Mounting remote directory $REMOTEUSR@$REMOTESRV:$REMOTDIR $LOCALMNT"
-sshfs $REMOTEUSR@$REMOTESRV:$REMOTDIR $LOCALMNT
-
-# see if temp direcory is there
-if [ -d "$tDIRSNAPS" ]; then
-    echo "$ts: Temporary directory tDIRSNAPS is available as $tDIRSNAPS"
-else
-    echo "$ts: ERROR - Temporary directory tDIRSNAPS is not available as $tDIRSNAPS"
-    exit 1
-fi
-
-if [ -d "$tDIRVID" ]; then
-    echo "$ts: Temporary directory tDIRVID is available as $tDIRVID"
-else
-    echo "$ts: ERROR - Temporary directory tDIRVID is not available as $tDIRVID"
-    exit 1
-fi
-
-
-#
-# -- Set sunrise and sunset based on script from Lubos Rendek
-#
-
-echo "$ts: -- Request sunrise and sunset"
+# --- set time parameters ---
 
 # Get sunrise and sunset raw data from weather.com
 sun_times=$( curl -s  https://weather.com/weather/today/l/$LOCATION | sed 's/<span/\n/g' | sed 's/<\/span>/\n/g'  | grep -E "dp0-details-sunrise|dp0-details-sunset" | tr -d '\n' | sed 's/>/ /g' | cut -d " " -f 4,8 )
@@ -66,105 +43,131 @@ sun_times=$( curl -s  https://weather.com/weather/today/l/$LOCATION | sed 's/<sp
 sunrise=$(date --date="`echo $sun_times | awk '{ print $1}'` AM" +%R)
 sunset=$(date --date="`echo $sun_times | awk '{ print $2}'` PM" +%R)
 
-echo "$ts: Sunrise at $sunrise"
-echo "$ts: Sunset at $sunset"
-
-#
-# -- Init the snapshot mechanism
-#
-
-echo "$ts: -- Init the snapshotting"
-echo "$ts: Current time is $tnow, start and end by $WARP h"
-
-
-# convert all to seconds
+# to seconds
 ssunrise=`date +%s -d ${sunrise}`
 ssunset=`date +%s -d ${sunset}`
-stnow=`date +%s -d ${tnow}`
-swarp=$((WARP*3600))
+sstsart=$((offSTART*3600))
+send=$((offEND*3600))
 
-# calculate a new time by adding the the current time to the waiting warp time
-swnow=`expr ${swarp} + ${stnow}`
+# format for drawtext. Escape :
+fsunrise=`echo "${sunrise//:/$'\:'}"`
+fsunset=`echo "${sunset//:/$'\:'}"`
 
-echo "$ts: The values in seconds are: sunrise $ssunrise, sunset $ssunset, now $stnow, warp $swarp and now and warp $swnow."
+# set offsets
+sstsart=`expr ${ssunrise} - ${sstsart}`
+send=`expr ${send} + ${ssunset}`
 
-# if the current is in between sunset and sunrise
-# set sleep to 0. If not, set the waiting time
-if [ "$ssunrise" -le "$swnow" -a "$swnow" -le "$ssunset" ]; then
-    echo "$ts: It the right time to start."
-else
+# wait until sunrise
+if [ "$stnow" -le "$sstsart" ]; then
+    swait=`expr ${sstsart} - ${stnow}`
+    sleep $swait
+fi
 
-    # if the current time is smaller than sunrise, its today and we'll wait until sunrise (minus the WARP)
-    if [ "$stnow" -le "$ssunrise" ]; then
+# --- do the visuals ---
 
-        # Get the dfference
-        swait=`expr ${ssunrise} - ${swnow}`
-        echo "$ts: It is too early to start."
+# create working directory
+mkdir "$wdir"
 
+# first pic
+raspistill -w $RESW -h $RESH -o "$wdir/pic_inital.jpg"
+
+# create an empty main vid
+avconv -t 0 -s $resx -pix_fmt yuvj420p -r 25 -i "$wdir/pic_inital.jpg" \
+-y "$wdir/mainvid_00000.mp4"
+
+# remove initial pic
+rm "$wdir/pic_inital.jpg" 
+
+while [ $fin -eq 1 ]
+do
+    # current time
+    tnow=$(date +%H:%M) 
+    # to second
+    stnow=`date +%s -d ${tnow}`
+    
+    # format the counter
+    n=`printf "%05d" $i`
+    m=`printf "%05d" $j`
+
+    # set hout and minutes for text overlay 
+    cm=`date +%M`
+    ch=`date +%H`
+
+    # read weather file
+    weather=`cat ${WFILE}`
+
+    # full overlay text
+    otext="${tsfriendly} \| ${ch}\:${cm} \| Sunrise\: ${fsunrise} \| Sunset\: ${fsunset} \| ${weather}"
+    
+    # take a first picture0
+    raspistill -w $RESW -h $RESH -o "$wdir/pic_$n.jpg"
+
+    # create text on picture0
+    avconv -i "$wdir/pic_$n.jpg" \
+    -vf drawtext="fontfile=$FPATH: \
+    text='$otext': fontcolor=white: fontsize=24: box=1: boxcolor=black@0.5: \
+    boxborderw=5: x=w-tw-10: y=h-th-10" \
+    -y "$wdir/pic_txt_$n.jpg"
+
+    # create video1 from picture0 with txt -t seconds, -s resolution
+    avconv -loop 1 -i "$wdir/pic_txt_$n.jpg" \
+    -t 0.040 -s $resx -qscale 10 \
+    -y "$wdir/pic_txt_vid_$n.mp4"
+
+    # join main -1 and picvideo0 into mainvid
+    avconv -i "$wdir/mainvid_$m.mp4" -i "$wdir/pic_txt_vid_$n.mp4" \
+    -filter_complex "[0:v:0][1:v:0]concat=n=2:v=1[outv]" -map "[outv]" -qscale 10 \
+    -y "$wdir/mainvid_$n.mp4"
+
+    # delete main picture
+    rm "$wdir/pic_$n.jpg"
+
+    # delete picture with text
+    rm "$wdir/pic_txt_$n.jpg"
+
+    # delete text overlay video
+    rm "$wdir/pic_txt_vid_$n.mp4"
+
+    # delete the previous maivideo from picture
+    rm "$wdir/mainvid_$m.mp4"
+
+    # wait for given second
+    sleep $INTERVAL
+
+    # add counter
+    i=`expr 1 + ${i}`
+    j=`expr 1 + ${j}`
+
+    # see if sunset with offset has passed
+    if [ "$stnow" -gt "$send" ]; then
+        fin=0
     fi
+    
+done  
 
-fi
+# rename the last video file
+mv "$wdir/mainvid_$n.mp4" "$wdir/MY-FINAL-FILE_$tsfriendly.mp4"
 
-echo "$ts: Set sleep to wait for $swait s. This is from $tnow until $sunrise minus $WARP h. No error handling for hours after sunset. Good for testing as you are programming after sunset anyways..."
-sleep $swait           # sleep in seconds
+# TODO CUSTOM STRINGS. For now, change below
+# copy video file to backup
+scp "$wdir/MY-FINAL-FILE_$tsfriendly.mp4" USER@SERVER:/PATH/TO/FOLDER/
 
-
-#
-# -- take snapshots
-#
-echo "$ts: -- Take snapshots"
-
-# create the working directory
-dirsnap="$tDIRSNAPS/$ts"
-echo "$ts: Snapshots temporary directory is set to $dirsnap"
-mkdir -p "$dirsnap"
-
-rightnow=$(date +%H:%M)
-echo "$ts: Start taking snapshots at $rightnow"
-
-# calculate the time period in seconds
-# => sunset + warp - sunrise + warp
-duration=`expr ${ssunset} + ${swarp} - ${ssunrise} + ${swarp}`
-
-echo "$ts: We'll take snapshots for $duration seconds, every $INTERVAL minute(s)."
-
-# convert to miliseconds
-msduration=$((duration*1000))       # seconds to ms
-msinterval=$((INTERVAL*60000))      # minutes to ms
-
-# DEBUG !!
-# msduration=120000
-
-raspistill -tl $msinterval -t $msduration -o $dirsnap/snapshot-%04d.jpg
-# tl interval, t for how long. All values in milliseconds
+# TODO CUSTOM STRINGS. For now, change below
+# upload to youtube
+/usr/local/bin/youtube-upload \
+  --title="MY TITLW" \
+  --description="MY DESCRIPTION"\
+  --category="Travel & Events" \
+  --tags="TAG1, TAG2" \
+  --default-language="de" \
+  --default-audio-language="de" \
+  --client-secrets="PATH TO client_secrets.json" \
+  --credentials-file="PATH TO my_credentials.json" \
+  --playlist="PLAYLIST" \
+  --privacy public \
+  --location latitude=47.2066136,longitude=7.5353353 \
+  --embeddable=True \
+  "$wdir/MY-FINAL-FILE_$tsfriendly.mp4"
 
 
-#
-# -- do the video
-#
-echo "$ts: -- Do the video"
-
-# copy the snapshots
-dirvid="$tDIRVID/$ts"
-rempath="$REMOTDIR/$ts"
-snapfiles="$rempath/snapshot-%04d.jpg"
-vidsfile="$rempath/MYTimeLapse_$ts.mp4"
-
-# create video by executing ffmpeg on the remote server. Mind to use the remote servers paths.
-echo "$ts: Create video on $REMOTESRV. Use snapshots $snapfiles to create $vidsfile in local $rempath, remote $rempath with framerate $hourfrm (Interval $INTERVAL, length of an hour $HOURFRM)"
-ssh -t $REMOTEUSR@$REMOTESRV "ffmpeg -report -thread_queue_size 5000 -fps $hourfrm -f image2 -s 2592x1944 -i $snapfiles -vcodec libx264 $vidsfile"
-
-
-if [ -f "$dirvid/Solothurn_TimeLapse_$ts.mp4" ]; then
-    echo "$ts: Video has ben created as $dirvid/Solothurn_TimeLapse_$ts.mp4, remote $rempath"
-
-    # Video exists, upload to youtube. Command executed on remote machine
-    echo "$ts: Start upload video youtube script on remote machine."
-    ssh -t $REMOTEUSR@$REMOTESRV "python3 upload_video.py --title='TITLE' --description='TEXT' --category=19 --privacyStatus='unlisted' --noauth_local_webserver --file='$vidsfile'"
-
-    rm -r "$dirsnap"
-
-else
-    echo "$ts: ERROR - Unable to find Video $vidsfile, remote $rempath, local $dirvid"
-    exit 1
-fi
+#rm -r "$wdir"
