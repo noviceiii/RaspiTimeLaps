@@ -1,0 +1,29 @@
+#!/bin/bash
+
+#   Script to get temperature, wind and rain into a variable
+#   and write it to a text file
+#   Version 1.0, March 3th 2019 by Oliver beta
+
+CITY="Solothurn"                            # STRING. city to querry
+WOUT="/opt/script/timelapse/weather.txt"    # STRING. full path to output file
+
+# --------------------------------------------------------------
+
+# get weather from wttr.in
+weather=`curl -s wttr.in/$CITY?0mMT`
+
+# grep the values
+temp=`echo "$weather" | grep -m 1 -Eo -e '-?[[:digit:]].*°C.*'`
+wind=`echo "$weather" | grep -m 1 -Eo -e '-?[[:digit:]].*m\/s.*'`
+rain=`echo "$weather"  | grep -m 1 -Eo -e '-?[[:digit:]].*mm.*'`
+
+# remove blank space
+temp=`echo ${temp//[[:blank:]]/}`
+wind=`echo ${wind//[[:blank:]]/}`
+rain=`echo ${rain//[[:blank:]]/}`
+
+# format output
+out="$temp \| $wind \| $rain"
+
+# write to file
+echo "$out" > "$WOUT"
