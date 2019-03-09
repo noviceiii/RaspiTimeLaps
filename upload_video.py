@@ -1,6 +1,8 @@
 #!/usr/bin/python
 # from google, slightly adjusted to comply with python 3
 
+# don't use it, it is outdated
+
 import http.client as httplib
 import httplib2
 import os
