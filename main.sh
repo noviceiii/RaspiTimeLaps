@@ -2,7 +2,7 @@
 
 #   Raspii Time Lapse from sunrise to sunset
 #   Backup on remote linux server, upload to youtube
-#   Version 2.0, March 3th by Oliver beta
+#   Version 2.1, March 9th by Oliver
 
 # Calculate Sunrise/ Sunset with Lubos Rendek on linuxconfig chmod +x sunrise-sunset.sh
 # youtube upload script https://github.com/tokland/youtube-upload
@@ -15,7 +15,7 @@ LOCATION="SZXX0006"                                 # STRING. Location to set su
 offSTART=1                                          # INT. Offset Hour to start before sunrise
 offEND=1                                            # INT. Offset Hour to quit after sunset
 FPATH="/opt/script/timelapse/Roboto-Regular.ttf"    # STRING. full path to font file. Optain from google fonts
-WFILE="/opt/script/timelapse/weather.txt"           # STRING. full path to file with weather information
+WFILE="/opt/script/timelapse/weather.txt"           # STRING. full path to file containing weather information
 
 # ----------------------------------------------------------------------------            
 
@@ -84,6 +84,9 @@ do
     tnow=$(date +%H:%M) 
     # to second
     stnow=`date +%s -d ${tnow}`
+
+    # seconds since epoc at start of progressing
+    sepoS=`date +%s`
     
     # format the counter
     n=`printf "%05d" $i`
@@ -109,9 +112,10 @@ do
     boxborderw=5: x=w-tw-10: y=h-th-10" \
     -y "$wdir/pic_txt_$n.jpg"
 
-    # create video1 from picture0 with txt -t seconds, -s resolution
+    # create video1 from picture0 with txt 
+    # -t seconds to display a picture, -s resolution, -qscale quality
     avconv -loop 1 -i "$wdir/pic_txt_$n.jpg" \
-    -t 0.040 -s $resx -qscale 10 \
+    -t 0.080 -s $resx -qscale 10 \
     -y "$wdir/pic_txt_vid_$n.mp4"
 
     # join main -1 and picvideo0 into mainvid
@@ -131,8 +135,20 @@ do
     # delete the previous maivideo from picture
     rm "$wdir/mainvid_$m.mp4"
 
+    # seconds since epoc at end of progressing
+    sepoE=`date +%s`
+
+    # calculate the sleep time
+    # to adjust with the durration of above progressing
+    diffint=`expr ${sepoE} - ${sepoS}`
+    newint=`expr ${INTERVAL} - ${diffint}`
+
+    if [ "$newint" -lt 0 ]; then
+        newint=0
+    fi
+
     # wait for given second
-    sleep $INTERVAL
+    sleep $newint
 
     # add counter
     i=`expr 1 + ${i}`
@@ -141,33 +157,33 @@ do
     # see if sunset with offset has passed
     if [ "$stnow" -gt "$send" ]; then
         fin=0
+
+        # rename the last video file
+        mv "$wdir/mainvid_$n.mp4" "$wdir/MYFILE_$tsfriendly.mp4"
     fi
     
 done  
 
-# rename the last video file
-mv "$wdir/mainvid_$n.mp4" "$wdir/MY-FINAL-FILE_$tsfriendly.mp4"
+# copy video file to backup server
+# remove if you don't have any. Uncomment at your convenience
+# scp "$wdir/MYFILE_$tsfriendly.mp4" USER@SERVER:/MY/PATH/
 
-# TODO CUSTOM STRINGS. For now, change below
-# copy video file to backup
-scp "$wdir/MY-FINAL-FILE_$tsfriendly.mp4" USER@SERVER:/PATH/TO/FOLDER/
-
-# TODO CUSTOM STRINGS. For now, change below
+# TODO CUSTOM STRINGS. For now, change below details
 # upload to youtube
 /usr/local/bin/youtube-upload \
-  --title="MY TITLW" \
-  --description="MY DESCRIPTION"\
+  --title="TITLE FROM $tsfriendly" \
+  --description="DESCRIPTION $INTERVAL Seconds. In $resx TEXT."\
   --category="Travel & Events" \
-  --tags="TAG1, TAG2" \
+  --tags="TAG, TAG" \
   --default-language="de" \
   --default-audio-language="de" \
-  --client-secrets="PATH TO client_secrets.json" \
-  --credentials-file="PATH TO my_credentials.json" \
+  --client-secrets="/home/pi/client_secrets.json" \
+  --credentials-file="/home/pi/my_credentials.json" \
   --playlist="PLAYLIST" \
   --privacy public \
-  --location latitude=47.2066136,longitude=7.5353353 \
+  --location latitude=XXXX,longitude=XXXXXX \
   --embeddable=True \
-  "$wdir/MY-FINAL-FILE_$tsfriendly.mp4"
+  "$wdir/MYFILE_$tsfriendly.mp4"
 
-
-#rm -r "$wdir"
+# remove working directory
+rm -r "$wdir"
