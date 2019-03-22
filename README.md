@@ -1,19 +1,19 @@
 # RaspiTimeLapse
 Bash script for raspberry pi. 
-It creates a timelapse video with weather text overlay and uploads it to youtube.
-
+It creates a timelapse video with weather text overlay and uploads it to youtube.<br>
+<br>
  - install avconf. Don't use ffmpeg. (sudo apt install libav-tools)
  - get a font e.g. from google fonts: https://fonts.google.com/specimen/Roboto
  - Copy main.sh it to your raspberry, make it executable (chmod +x main.sh)
- - adjust the paths/ variables in main.sh
- 
+ - adjust the paths/ variables in main.sh<br>
+ <br>
  - To Upload to Youtube you need python3 and toklands script. Make sure its python3.
--> Follow the instructions on https://github.com/tokland/youtube-upload
- 
- See examples of the final videos here:
- https://www.youtube.com/watch?v=Ff2tpp18Y3M&index=2&list=PLcnGcU-Z-RJ1uRxLbBiHb2feVr6tQzJVj
- 
- 
+-> Follow the instructions on https://github.com/tokland/youtube-upload<br>
+ <br>
+ See examples of the final videos here:<br>
+ https://www.youtube.com/watch?v=Ff2tpp18Y3M&index=2&list=PLcnGcU-Z-RJ1uRxLbBiHb2feVr6tQzJVj<br>
+ <br>
+ <br>
  You might be tempted to use raspistill to automatically create a series of pictures.<br>
  This would be feasible indeed... 
  However, I have made the experience, that the raspi isn't powerfull enought to create a timelapse video out of a few 100 pictures.
