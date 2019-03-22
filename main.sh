@@ -2,7 +2,7 @@
 
 #   Raspii Time Lapse from sunrise to sunset
 #   Backup on remote linux server, upload to youtube
-#   Version 2.1, March 9th by Oliver
+#   Version 2.2, March 22nd by Oliver
 
 # Calculate Sunrise/ Sunset with Lubos Rendek on linuxconfig chmod +x sunrise-sunset.sh
 # youtube upload script https://github.com/tokland/youtube-upload
@@ -16,6 +16,7 @@ offSTART=1                                          # INT. Offset Hour to start 
 offEND=1                                            # INT. Offset Hour to quit after sunset
 FPATH="/opt/script/timelapse/Roboto-Regular.ttf"    # STRING. full path to font file. Optain from google fonts
 WFILE="/opt/script/timelapse/weather.txt"           # STRING. full path to file containing weather information
+SDT=0.080                                           # FLOAT. Time to display one picture in the video in seconds.
 
 # ----------------------------------------------------------------------------            
 
@@ -72,7 +73,7 @@ mkdir "$wdir"
 raspistill -w $RESW -h $RESH -o "$wdir/pic_inital.jpg"
 
 # create an empty main vid
-avconv -t 0 -s $resx -pix_fmt yuvj420p -r 25 -i "$wdir/pic_inital.jpg" \
+avconv -t 0 -s $resx -pix_fmt yuvj420p -t $SDT -i "$wdir/pic_inital.jpg" \
 -y "$wdir/mainvid_00000.mp4"
 
 # remove initial pic
@@ -100,7 +101,7 @@ do
     weather=`cat ${WFILE}`
 
     # full overlay text
-    otext="${tsfriendly} \| ${ch}\:${cm} \| Sunrise\: ${fsunrise} \| Sunset\: ${fsunset} \| ${weather}"
+    otext="${tsfriendly} \| ${ch}\:${cm} \| Sunrise\: ${fsunrise} \| Sunset\: ${fsunset} \| ${weather} \| $n"
     
     # take a first picture0
     raspistill -w $RESW -h $RESH -o "$wdir/pic_$n.jpg"
@@ -113,9 +114,9 @@ do
     -y "$wdir/pic_txt_$n.jpg"
 
     # create video1 from picture0 with txt 
-    # -t seconds to display a picture, -s resolution, -qscale quality
+    # -t seconds to display a picture, -s resolution, -qscale quality, -crf quality
     avconv -loop 1 -i "$wdir/pic_txt_$n.jpg" \
-    -t 0.080 -s $resx -qscale 10 \
+    -t $SDT -s $resx -crf 18 \
     -y "$wdir/pic_txt_vid_$n.mp4"
 
     # join main -1 and picvideo0 into mainvid
