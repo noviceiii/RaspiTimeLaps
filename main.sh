@@ -2,21 +2,21 @@
 
 #   Raspii Time Lapse from sunrise to sunset
 #   Backup on remote linux server, upload to youtube
-#   Version 2.2, March 22nd by Oliver
+#   Version 2.3, March 23th by Oliver
 
 # Calculate Sunrise/ Sunset with Lubos Rendek on linuxconfig chmod +x sunrise-sunset.sh
 # youtube upload script https://github.com/tokland/youtube-upload
 
 TDIR="/tmp"                                         # STRING. temporary directory
-INTERVAL=15                                         # INT. take picture in that interval in seconds
-RESW="1920"                                         # STRING. resolution width
-RESH="1080"                                         # STRING. resolution height
+INTERVAL=2                                          # INT. take picture in that interval in seconds
+RESW="2592"                                         # STRING. resolution width
+RESH="1944"                                         # STRING. resolution height
 LOCATION="SZXX0006"                                 # STRING. Location to set sunset/sunrise
 offSTART=1                                          # INT. Offset Hour to start before sunrise
 offEND=1                                            # INT. Offset Hour to quit after sunset
-FPATH="/opt/script/timelapse/Roboto-Regular.ttf"    # STRING. full path to font file. Optain from google fonts
-WFILE="/opt/script/timelapse/weather.txt"           # STRING. full path to file containing weather information
-SDT=0.080                                           # FLOAT. Time to display one picture in the video in seconds.
+FPATH="/PATH/TO/Roboto-Regular.ttf"                 # STRING. full path to font file. Optain from google fonts
+WFILE="/PATH/TO/timelapse/weather.txt"              # STRING. full path to file with weather information
+DT=0.080					                        # FLOAT. Time to display one picture in seconds (0.040 is 25 frames per second)
 
 # ----------------------------------------------------------------------------            
 
@@ -34,11 +34,13 @@ i=1
 j=0
 fin=1
 resx="${RESW}x${RESH}"
+fr=`echo 1/${DT} | bc`                              # frame rate from picture display time
 
 # --- set time parameters ---
 
 # Get sunrise and sunset raw data from weather.com
-sun_times=$( curl -s  https://weather.com/weather/today/l/$LOCATION | sed 's/<span/\n/g' | sed 's/<\/span>/\n/g'  | grep -E "dp0-details-sunrise|dp0-details-sunset" | tr -d '\n' | sed 's/>/ /g' | cut -d " " -f 4,8 )
+sun_times=$( curl -s  https://weather.com/weather/today/l/$LOCATION | sed 's/<span/\n/g' | sed 's/<\/span>/\n/g'  | grep -E "dp0-det
+ails-sunrise|dp0-details-sunset" | tr -d '\n' | sed 's/>/ /g' | cut -d " " -f 4,8 )
 
 # Extract sunrise and sunset times and convert to 24 hour format
 sunrise=$(date --date="`echo $sun_times | awk '{ print $1}'` AM" +%R)
@@ -70,10 +72,10 @@ fi
 mkdir "$wdir"
 
 # first pic
-raspistill -w $RESW -h $RESH -o "$wdir/pic_inital.jpg"
+raspistill -w $RESW -h $RESH -q 100 -o "$wdir/pic_inital.jpg"
 
 # create an empty main vid
-avconv -t 0 -s $resx -pix_fmt yuvj420p -t $SDT -i "$wdir/pic_inital.jpg" \
+avconv -t 0 -s $resx -pix_fmt yuvj420p -t $DT -i "$wdir/pic_inital.jpg" \
 -y "$wdir/mainvid_00000.mp4"
 
 # remove initial pic
@@ -101,10 +103,10 @@ do
     weather=`cat ${WFILE}`
 
     # full overlay text
-    otext="${tsfriendly} \| ${ch}\:${cm} \| Sunrise\: ${fsunrise} \| Sunset\: ${fsunset} \| ${weather} \| $n"
+    otext="${tsfriendly} \| ${ch}\:${cm} \| Sunrise\: ${fsunrise} \| Sunset\: ${fsunset} \| ${weather} \| ${n}"
     
     # take a first picture0
-    raspistill -w $RESW -h $RESH -o "$wdir/pic_$n.jpg"
+    raspistill -w $RESW -h $RESH -q 100 -o "$wdir/pic_$n.jpg"
 
     # create text on picture0
     avconv -i "$wdir/pic_$n.jpg" \
@@ -116,12 +118,12 @@ do
     # create video1 from picture0 with txt 
     # -t seconds to display a picture, -s resolution, -qscale quality, -crf quality
     avconv -loop 1 -i "$wdir/pic_txt_$n.jpg" \
-    -t $SDT -s $resx -crf 18 \
+    -t $DT -s $resx -crf 18 \
     -y "$wdir/pic_txt_vid_$n.mp4"
 
     # join main -1 and picvideo0 into mainvid
-    avconv -i "$wdir/mainvid_$m.mp4" -i "$wdir/pic_txt_vid_$n.mp4" \
-    -filter_complex "[0:v:0][1:v:0]concat=n=2:v=1[outv]" -map "[outv]" -qscale 10 \
+    avconv -r $fr -i "$wdir/mainvid_$m.mp4" -i "$wdir/pic_txt_vid_$n.mp4" \
+    -filter_complex "[0:v:0][1:v:0]concat=n=2:v=1[outv]" -map "[outv]" -crf 18 \
     -y "$wdir/mainvid_$n.mp4"
 
     # delete main picture
@@ -160,31 +162,29 @@ do
         fin=0
 
         # rename the last video file
-        mv "$wdir/mainvid_$n.mp4" "$wdir/MYFILE_$tsfriendly.mp4"
+        mv "$wdir/mainvid_$n.mp4" "$wdir/MYVID_timelapse_$tsfriendly.mp4"
     fi
     
 done  
 
-# copy video file to backup server
-# remove if you don't have any. Uncomment at your convenience
-# scp "$wdir/MYFILE_$tsfriendly.mp4" USER@SERVER:/MY/PATH/
+# copy video file to backup
+# scp "$wdir/MYVID_timelapse_$tsfriendly.mp4" USER@SERVERER:/PATH/PATH/
 
-# TODO CUSTOM STRINGS. For now, change below details
+# TODO CUSTOM STRINGS. For now, change below
 # upload to youtube
 /usr/local/bin/youtube-upload \
-  --title="TITLE FROM $tsfriendly" \
-  --description="DESCRIPTION $INTERVAL Seconds. In $resx TEXT."\
+  --title="MYVID Zeitraffer $tsfriendly" \
+  --description=" "\
   --category="Travel & Events" \
-  --tags="TAG, TAG" \
+  --tags="MYVID, Zeitraffer" \
   --default-language="de" \
   --default-audio-language="de" \
   --client-secrets="/home/pi/client_secrets.json" \
   --credentials-file="/home/pi/my_credentials.json" \
-  --playlist="PLAYLIST" \
+  --playlist="MYVID Zeitraffer" \
   --privacy public \
-  --location latitude=XXXX,longitude=XXXXXX \
+  --location latitude=47.2066136,longitude=7.5353353 \
   --embeddable=True \
-  "$wdir/MYFILE_$tsfriendly.mp4"
+  "$wdir/MYVID_timelapse_$tsfriendly.mp4"
 
-# remove working directory
 rm -r "$wdir"
