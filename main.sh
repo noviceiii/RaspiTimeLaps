@@ -2,7 +2,7 @@
 
 #   Raspii Time Lapse from sunrise to sunset with text overlay,
 #   Backup on remote linux server, upload to youtube.
-#   Version 3.0, August 27th by Oliver.
+#   Version 3.1, August 27th by Oliver.
 
 #   Please see credits, sources and help on github.
 #
@@ -68,8 +68,11 @@ sendtime=$(( ssunset + send ))              # when to end the script in seconds
 if [ $debug -eq 1 ]; then
     echo "Debugging mode is on. Starting imedately."
 elif [ $snow1 -lt $sstart ]; then
-    offwait=$(( sstart - snow1 )) 
-    echo "$tnow1 is too early to start. Sunrise at $ssunrise. Offset offSTART hrs. Waiting $offwait second(s)..."
+    offwait=$(( sstarttime - snow1 )) 
+    if [ $offwait -lt 0 ]; then
+        offwait=0
+    fi
+    echo "Sunrise at $ssunrise. Offset $offSTART hrs. It is $tnow1. Waiting $offwait second(s)..."
     sleep $offwait
 fi
 
