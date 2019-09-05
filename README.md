@@ -18,7 +18,9 @@ To be able to upload to Youtube you need python3, the api client and toklands sc
  https://www.youtube.com/watch?v=Ff2tpp18Y3M&index=2&list=PLcnGcU-Z-RJ1uRxLbBiHb2feVr6tQzJVj<br>
  <br>
  <br>
- You might be tempted to use raspistill to automatically create a series of pictures.<br>
+ You might be tempted to use raspistill pi3 to automatically create a series of pictures.<br>
  This would be feasible indeed... 
  However, I have made the experience, that the raspi isn't powerfull enought to create a timelapse video out of a few 100 pictures.
  This script creates the video after every picture taken. And it has the advantagae to add overlay text in real time.
+ <br><br>
+ A pi 4 has enough power to process 2k every 15sec in reasonable time.
