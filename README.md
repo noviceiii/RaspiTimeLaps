@@ -8,8 +8,11 @@ It creates a timelapse video with weather text overlay and uploads it to youtube
  - Copy main.sh it to your raspberry, make it executable (chmod +x main.sh)
  - adjust the paths/ variables in main.sh<br>
  <br>
- - To Upload to Youtube you need python3 and toklands script. Make sure its python3.
--> Follow the instructions on https://github.com/tokland/youtube-upload<br>
+To be able to upload to Youtube you need python3, the api client and toklands script. <br>
+ - install python-pip Make sure its python3. <br>
+ - pip install google-api-python-client <br>
+ - pip install --upgrade oauth2client <br>
+ - then follow the installation and setup instructions on https://github.com/tokland/youtube-upload<br>
  <br>
  See examples of the final videos here:<br>
  https://www.youtube.com/watch?v=Ff2tpp18Y3M&index=2&list=PLcnGcU-Z-RJ1uRxLbBiHb2feVr6tQzJVj<br>
