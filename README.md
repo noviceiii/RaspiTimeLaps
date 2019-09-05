@@ -2,7 +2,7 @@
 Bash script for raspberry pi. 
 It creates a timelapse video with weather text overlay and uploads it to youtube.<br>
 <br>
- - install avconf. Don't use ffmpeg. (sudo apt install libav-tools)
+ - install ffmpeg. (sudo apt install ffmpeg)
  - install bc (sudo apt install bc)
  - get a font e.g. from google fonts: https://fonts.google.com/specimen/Roboto
  - Copy main.sh it to your raspberry, make it executable (chmod +x main.sh)
